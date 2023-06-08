@@ -26,7 +26,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "audio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -89,17 +89,58 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_I2S2_Init();
   MX_SPI1_Init();
   MX_FATFS_Init();
+  MX_I2S3_Init();
   /* USER CODE BEGIN 2 */
 
+  FIL file;
+  FRESULT fr;
+
+  fr = f_mount(&USERFatFS, "/", 1);
+
+  fr = f_open(&file, "123456.txt", FA_CREATE_NEW);
+
+  UINT bwr;
+
+  // Init AI buffer
+  uint16_t size = 1024 * 2;
+  int16_t aiBuffer[size];
+  uint8_t val = 0;
+  char newline = '\n';
+
+  for (int i = 0; i < size; i++) {
+	  aiBuffer[i] = val++;
+  }
+
+  fr = f_open(&file, "1234.txt", FA_OPEN_APPEND | FA_WRITE);
+  fr = f_write(&file, &newline, 1, &bwr);
+
+  for (int repeat = 128; repeat > 0; repeat--) {
+	  fr = f_write(&file, &aiBuffer, size * 2, &bwr);
+	  fr = f_write(&file, &newline, 1, &bwr);
+  }
+
+  f_close(&file);
+
+//  fr = f_open(&file, "1234.txt", FA_READ);
+//  fr = f_read(&file, &buff_r, sizeof(buff_r), &bwr);
+  //f_close(&file);
+
+  f_mount(0, "", 0);
+
+  if (fr != FR_OK) {
+
+  }
+
+  audio_Start();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
