@@ -11,6 +11,8 @@
 #define AUDIO_FRAME_SIZE 1024
 
 void audio_Start();
+void audio_Pause();
+void audio_Resume();
 void audio_HalfCallback();
 void audio_FullCallback();
 void audio_ProcessDMABuffer(uint16_t dmaBufferStart);

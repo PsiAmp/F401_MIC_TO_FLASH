@@ -27,6 +27,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "audio.h"
+#include "blinker.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,7 +47,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+uint8_t enableBlink = 1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -94,6 +95,43 @@ int main(void)
   MX_I2S3_Init();
   /* USER CODE BEGIN 2 */
 
+  while (1) {
+	  if (enableBlink)
+		  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	  HAL_Delay(250);
+  }
+
+  FIL file;
+  FRESULT fr;
+  UINT bwr;
+  char newline = '\n';
+  uint8_t write_data[1024];
+
+  for (int i = 0; i < sizeof(write_data); i++) {
+	  write_data[i] = 'A' + i;
+  }
+
+  fr = f_mount(&USERFatFS, "/", 1);
+
+  for (int i = 0; i < 16 * 10; i++) {
+	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	  fr = f_open(&file, "12345.aaa", FA_OPEN_APPEND | FA_WRITE);
+	  fr = f_write(&file, &write_data, sizeof(write_data), &bwr);
+	  fr = f_close(&file);
+  }
+
+  if (fr != FR_OK) {
+	  blinker_Blink(500);
+  } else {
+	  blinker_Heartbeat(200, 400);
+  }
+
+
+  while (1) {
+
+  }
+
+/*
   FIL file;
   FRESULT fr;
 
@@ -132,7 +170,7 @@ int main(void)
   if (fr != FR_OK) {
 
   }
-
+*/
   audio_Start();
   /* USER CODE END 2 */
 
@@ -194,7 +232,14 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+	if (GPIO_Pin == USER_BUTTON_Pin) {
+		if (enableBlink)
+			enableBlink = 0;
+		else
+			enableBlink = 1;
+	}
+}
 /* USER CODE END 4 */
 
 /**
