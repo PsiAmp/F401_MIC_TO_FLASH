@@ -5,42 +5,34 @@
  *      Author: Psi
  */
 
-
 #include "flash.h"
 #include "fatfs.h"
 
-void flash_Mount() {
+FRESULT flash_Mount() {
 	FRESULT fr = f_mount(&USERFatFS, "/", 1);
-	if (fr != FR_OK) {
-		__NOP();
-	}
+	return fr;
 }
 
-void flash_Unmount() {
+FRESULT flash_Unmount() {
 	FRESULT fr = f_mount(0, "", 0);
-	if (fr != FR_OK) {
-		__NOP();
-	}
+	return fr;
 }
 
-void flash_WriteAppend(char *name, uint8_t *data, uint32_t size) {
+FRESULT flash_OpenFile(FIL *file, char *name) {
+	FRESULT fr;
+	fr = f_open(file, name, FA_OPEN_APPEND | FA_WRITE);
+	return fr;
+}
+
+FRESULT flash_CloseFile(FIL *file) {
+	FRESULT fr;
+	fr = f_close(file);
+	return fr;
+}
+
+FRESULT flash_WriteAppend(FIL *file, uint8_t *data, uint32_t size) {
 	UINT bwr;
 	FRESULT fr;
-	FIL file;
-
-	fr = f_open(&file, "qaz.pcm", FA_OPEN_APPEND | FA_WRITE);
-
-	if (fr != FR_OK) {
-		__NOP();
-	}
-
-	fr = f_write(&file, data, size, &bwr);
-
-	if (fr != FR_OK) {
-		__NOP();
-	} else {
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	}
-
-	f_close(&file);
+	fr = f_write(file, data, size, &bwr);
+	return fr;
 }

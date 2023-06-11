@@ -16,5 +16,8 @@ void audio_Resume();
 void audio_HalfCallback();
 void audio_FullCallback();
 void audio_ProcessDMABuffer(uint16_t dmaBufferStart);
+void audio_ToggleRecord();
+uint8_t* audio_GetBuffer();
+uint8_t* audio_BufferUpdated();
 
 #endif /* INC_AUDIO_H_ */

@@ -8,9 +8,11 @@
 #include "main.h"
 #include "audio.h"
 #include "flash.h"
+#include "blinker.h"
 
 volatile int32_t audioDMABuffer[AUDIO_FRAME_SIZE * 2 * 4];
 int16_t audioBuffer[AUDIO_FRAME_SIZE];
+uint8_t audioBufferUpdated = 0;
 
 extern I2S_HandleTypeDef hi2s3;
 
@@ -39,12 +41,17 @@ void audio_ProcessDMABuffer(uint16_t dmaBufferStart) {
 		audioBuffer[i] = (int16_t)audioDMABuffer[dmaBufferStart + i * 4];
 	}
 
-	audio_Pause();
-
-	// Write audioBuffer to Flash
-//	flash_Mount();
-	flash_WriteAppend("shahed.fp", &audioBuffer[0], AUDIO_FRAME_SIZE * 2);
-//	flash_Unmount();
-
-	audio_Resume();
+	audioBufferUpdated = 1;
 }
+
+uint8_t* audio_GetBuffer() {
+	audioBufferUpdated = 0;
+	return &audioBuffer[0];
+}
+
+uint8_t* audio_BufferUpdated() {
+	return &audioBufferUpdated;
+}
+
+
+

@@ -9,9 +9,12 @@
 #define INC_FLASH_H_
 
 #include "main.h"
+#include "fatfs.h"
 
-void flash_Mount();
-void flash_Unmount();
-void flash_WriteAppend(char *name, uint8_t *data, uint32_t size);
+FRESULT flash_Mount();
+FRESULT flash_Unmount();
+FRESULT flash_OpenFile(FIL *file, char *name);
+FRESULT flash_CloseFile(FIL *file);
+FRESULT flash_WriteAppend(FIL *file, uint8_t *data, uint32_t size);
 
 #endif /* INC_FLASH_H_ */

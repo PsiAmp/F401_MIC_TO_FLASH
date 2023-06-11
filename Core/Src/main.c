@@ -28,6 +28,7 @@
 /* USER CODE BEGIN Includes */
 #include "audio.h"
 #include "blinker.h"
+#include "flash.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,6 +49,8 @@
 
 /* USER CODE BEGIN PV */
 uint8_t enableBlink = 1;
+uint8_t flashRecordingState = 0;
+FIL audio_file;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -95,6 +98,7 @@ int main(void)
   MX_I2S3_Init();
   /* USER CODE BEGIN 2 */
 
+/*
   while (1) {
 	  if (enableBlink)
 		  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
@@ -123,14 +127,14 @@ int main(void)
   if (fr != FR_OK) {
 	  blinker_Blink(500);
   } else {
-	  blinker_Heartbeat(200, 400);
+	  blinker_Heartbeat(200, 3, 400, 1, -1);
   }
 
 
   while (1) {
 
   }
-
+*/
 /*
   FIL file;
   FRESULT fr;
@@ -178,6 +182,33 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	if (flashRecordingState == 0)
+	  continue;
+
+	if (flashRecordingState == 1) {
+		// Init file
+		if (flashRecordingState == 1) {
+			if (flash_Mount() != FR_OK) {
+				blinker_Heartbeat(100, 4, 250, 4, -1);
+			}
+
+			if (flash_OpenFile(&audio_file, "audio_board.pcm") != FR_OK) {
+				blinker_Heartbeat(200, 4, 500, 2, -1);
+			}
+
+			flashRecordingState = 2;
+		}
+	} else if (flashRecordingState == 2 && *audio_BufferUpdated() == 1) {
+		// Write file
+		if (flash_WriteAppend(&audio_file, audio_GetBuffer(), AUDIO_FRAME_SIZE * 2) != FR_OK) {
+			blinker_Heartbeat(200, 2, 500, 2, -1);
+		}
+		blinker_BlinkOnce();
+	} else if (flashRecordingState == 3) {
+		flash_CloseFile(&audio_file);
+		flash_Unmount();
+		flashRecordingState = 0;
+	}
 
     /* USER CODE END WHILE */
 
@@ -234,10 +265,12 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if (GPIO_Pin == USER_BUTTON_Pin) {
-		if (enableBlink)
-			enableBlink = 0;
+		if (flashRecordingState == 0)
+			flashRecordingState = 1;
+		else if (flashRecordingState == 2)
+			flashRecordingState = 3;
 		else
-			enableBlink = 1;
+			flashRecordingState = 0;
 	}
 }
 /* USER CODE END 4 */
