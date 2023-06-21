@@ -20,15 +20,18 @@
 #include "main.h"
 #include "dma.h"
 #include "fatfs.h"
+#include "i2c.h"
 #include "i2s.h"
 #include "spi.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stdlib.h"
 #include "audio.h"
 #include "blinker.h"
 #include "flash.h"
+#include "ssd1306.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,6 +54,7 @@
 uint8_t enableBlink = 1;
 uint8_t flashRecordingState = 0;
 FIL audio_file;
+uint8_t oledLineX = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -96,85 +100,45 @@ int main(void)
   MX_SPI1_Init();
   MX_FATFS_Init();
   MX_I2S3_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+#if OLED_ENABLE == 1U
+  ssd1306_Init();
+  HAL_Delay(500);
+  oledLineX = 127;
+  uint8_t oledLineHeight = 0;
 
-/*
-  while (1) {
-	  if (enableBlink)
-		  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	  HAL_Delay(250);
-  }
+  ssd1306_SetColor(Black);
+  ssd1306_Fill();
+  ssd1306_UpdateScreen();
+  HAL_Delay(500);
+  ssd1306_SetColor(White);
+  ssd1306_Fill();
+  ssd1306_UpdateScreen();
+  HAL_Delay(500);
+  ssd1306_SetColor(Black);
+  ssd1306_Fill();
+  ssd1306_UpdateScreen();
+  HAL_Delay(500);
 
-  FIL file;
-  FRESULT fr;
-  UINT bwr;
-  char newline = '\n';
-  uint8_t write_data[1024];
+//  while (1) {
+//	  ssd1306_SetColor(Black);
+//	  ssd1306_DrawVerticalLine(oledLineX - 1, 0, 64);
+//
+//	  ssd1306_SetColor(White);
+//	  ssd1306_DrawVerticalLine(oledLineX, 32 - (oledLineHeight >> 1), oledLineHeight);
+//
+//	  ssd1306_UpdateScreen();
+//
+//	  if (--oledLineX > 127)
+//		  oledLineX = 127;
+//
+//	  HAL_Delay(10);
+//
+//	  oledLineHeight = rand() % 64;
+//  }
 
-  for (int i = 0; i < sizeof(write_data); i++) {
-	  write_data[i] = 'A' + i;
-  }
-
-  fr = f_mount(&USERFatFS, "/", 1);
-
-  for (int i = 0; i < 16 * 10; i++) {
-	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	  fr = f_open(&file, "12345.aaa", FA_OPEN_APPEND | FA_WRITE);
-	  fr = f_write(&file, &write_data, sizeof(write_data), &bwr);
-	  fr = f_close(&file);
-  }
-
-  if (fr != FR_OK) {
-	  blinker_Blink(500);
-  } else {
-	  blinker_Heartbeat(200, 3, 400, 1, -1);
-  }
-
-
-  while (1) {
-
-  }
-*/
-/*
-  FIL file;
-  FRESULT fr;
-
-  fr = f_mount(&USERFatFS, "/", 1);
-
-  fr = f_open(&file, "123456.txt", FA_CREATE_NEW);
-
-  UINT bwr;
-
-  // Init AI buffer
-  uint16_t size = 1024 * 2;
-  int16_t aiBuffer[size];
-  uint8_t val = 0;
-  char newline = '\n';
-
-  for (int i = 0; i < size; i++) {
-	  aiBuffer[i] = val++;
-  }
-
-  fr = f_open(&file, "1234.txt", FA_OPEN_APPEND | FA_WRITE);
-  fr = f_write(&file, &newline, 1, &bwr);
-
-  for (int repeat = 128; repeat > 0; repeat--) {
-	  fr = f_write(&file, &aiBuffer, size * 2, &bwr);
-	  fr = f_write(&file, &newline, 1, &bwr);
-  }
-
-  f_close(&file);
-
-//  fr = f_open(&file, "1234.txt", FA_READ);
-//  fr = f_read(&file, &buff_r, sizeof(buff_r), &bwr);
-  //f_close(&file);
-
-  f_mount(0, "", 0);
-
-  if (fr != FR_OK) {
-
-  }
-*/
+#endif
   audio_Start();
   /* USER CODE END 2 */
 
@@ -182,33 +146,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	if (flashRecordingState == 0)
-	  continue;
-
-	if (flashRecordingState == 1) {
-		// Init file
-		if (flashRecordingState == 1) {
-			if (flash_Mount() != FR_OK) {
-				blinker_Heartbeat(100, 4, 250, 4, -1);
-			}
-
-			if (flash_OpenFile(&audio_file, "audio_board.pcm") != FR_OK) {
-				blinker_Heartbeat(200, 4, 500, 2, -1);
-			}
-
-			flashRecordingState = 2;
-		}
-	} else if (flashRecordingState == 2 && *audio_BufferUpdated() == 1) {
-		// Write file
-		if (flash_WriteAppend(&audio_file, audio_GetBuffer(), AUDIO_FRAME_SIZE * 2) != FR_OK) {
-			blinker_Heartbeat(200, 2, 500, 2, -1);
-		}
-		blinker_BlinkOnce();
-	} else if (flashRecordingState == 3) {
-		flash_CloseFile(&audio_file);
-		flash_Unmount();
-		flashRecordingState = 0;
-	}
+	  processFlashRecording();
 
     /* USER CODE END WHILE */
 
@@ -272,6 +210,74 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		else
 			flashRecordingState = 0;
 	}
+}
+
+void processFlashRecording() {
+	if (flashRecordingState == 0)
+	  return;
+
+	if (flashRecordingState == 1) {
+		// Init file
+		if (flashRecordingState == 1) {
+			if (flash_Mount() != FR_OK) {
+				blinker_Heartbeat(100, 4, 250, 4, -1);
+			}
+
+			if (flash_OpenFile(&audio_file, "audio_board.pcm") != FR_OK) {
+				blinker_Heartbeat(200, 4, 500, 2, -1);
+			}
+
+			flashRecordingState = 2;
+		}
+	} else if (flashRecordingState == 2 && *audio_BufferUpdated() == 1) {
+		// Write file
+		if (flash_WriteAppend(&audio_file, audio_GetBuffer(), AUDIO_FRAME_SIZE * 2) != FR_OK) {
+			blinker_Heartbeat(200, 2, 500, 2, -1);
+		}
+
+#if OLED_ENABLE == 1U
+		visualisePCM();
+#endif
+		blinker_BlinkOnce();
+	} else if (flashRecordingState == 3) {
+		flash_CloseFile(&audio_file);
+		flash_Unmount();
+		flashRecordingState = 0;
+	}
+}
+
+void visualisePCM() {
+	int16_t *audioFrameBuffer = audio_GetBuffer();
+	int16_t maxAudioFrameValue = 0;
+
+	for (int i = 10; i < AUDIO_FRAME_SIZE; i++) {
+		if (maxAudioFrameValue < abs(audioFrameBuffer[i]) && abs(audioFrameBuffer[i]) <= 512)
+			maxAudioFrameValue = abs(audioFrameBuffer[i]);
+	}
+
+	maxAudioFrameValue /= 8;
+
+	if (maxAudioFrameValue > 64)
+		maxAudioFrameValue = 64;
+
+	if (maxAudioFrameValue == 0)
+		maxAudioFrameValue = 1;
+
+	uint16_t lineH = (uint16_t)maxAudioFrameValue;
+
+	ssd1306_SetColor(Black);
+	if (oledLineX == 0)
+		ssd1306_DrawVerticalLine(127, 0, 64);
+	else
+		ssd1306_DrawVerticalLine(oledLineX - 1, 0, 64);
+
+	ssd1306_SetColor(White);
+	ssd1306_DrawVerticalLine(oledLineX, 32 - (lineH >> 1), lineH);
+
+	ssd1306_UpdateScreen();
+
+	if (--oledLineX == 255)
+		oledLineX = 127;
 }
 /* USER CODE END 4 */
 

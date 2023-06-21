@@ -46,14 +46,14 @@ extern "C" {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
-
+#define OLED_ENABLE 1U
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+void processFlashRecording();
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
