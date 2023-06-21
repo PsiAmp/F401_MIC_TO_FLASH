@@ -44,7 +44,7 @@ void audio_ProcessDMABuffer(uint16_t dmaBufferStart) {
 	audioBufferUpdated = 1;
 }
 
-uint8_t* audio_GetBuffer() {
+int16_t* audio_GetBuffer() {
 	audioBufferUpdated = 0;
 	return &audioBuffer[0];
 }
